@@ -1,0 +1,29 @@
+<div id="claude-panel">
+  <div id="chat-area">
+    <div id="messages"></div>
+  </div>
+
+  <div id="input-area">
+    <textarea
+      id="user-input"
+      placeholder="Ask Claude about your code..."
+      rows="2"
+    ></textarea>
+    <div id="controls">
+      <label class="system-label">
+        System:
+        <input
+          type="text"
+          id="system-prompt"
+          value="You are a Cocos Creator expert. Help with TypeScript game code, component design, and debugging."
+          placeholder="System prompt..."
+        />
+      </label>
+      <div id="buttons">
+        <button id="btn-send">Send</button>
+        <button id="btn-clear">Clear Chat</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </div>
+</div>
