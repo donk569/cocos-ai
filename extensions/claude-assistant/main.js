@@ -5,7 +5,7 @@
  * Provides a dockable panel for AI-assisted development.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.messages = void 0;
+exports.methods = exports.messages = void 0;
 exports.load = load;
 exports.unload = unload;
 exports.open = open;
@@ -33,11 +33,17 @@ function open() {
     }
 }
 /**
- * Menu message handler.
+ * Message/method handlers for IPC from menu and other extension points.
+ * Cocos Creator 3.x uses `messages` for menu items.
  */
 exports.messages = {
     'toggle-panel'() {
-        // The menu click will open/close the panel automatically via contributions
-        console.log('[Claude Assistant] Toggle panel requested');
+        console.log('[Claude Assistant] Toggle panel requested via messages');
+        // Editor.Panel.open('claude-assistant.default');
+    },
+};
+exports.methods = {
+    'toggle-panel'() {
+        console.log('[Claude Assistant] Toggle panel requested via methods');
     },
 };

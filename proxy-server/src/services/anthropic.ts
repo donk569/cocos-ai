@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,13 +8,13 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const client = new Anthropic({ apiKey });
-
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
+// DeepSeek API — OpenAI-compatible
+const API_BASE = process.env.API_BASE || 'https://api.deepseek.com';
+const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_MAX_TOKENS = 4096;
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -27,9 +26,20 @@ export interface ChatRequest {
 }
 
 /**
- * Stream a chat completion from Anthropic.
- * Calls `onChunk(text)` for each text delta, `onDone(fullText)` on completion,
- * and `onError(err)` on failure.
+ * Build messages array with optional system prompt.
+ */
+function buildMessages(req: ChatRequest): ChatMessage[] {
+  const messages: ChatMessage[] = [];
+  if (req.system) {
+    messages.push({ role: 'system', content: req.system });
+  }
+  messages.push(...req.messages);
+  return messages;
+}
+
+/**
+ * Stream a chat completion from DeepSeek API.
+ * Uses SSE streaming (OpenAI-compatible format).
  */
 export async function streamChat(
   req: ChatRequest,
@@ -40,49 +50,87 @@ export async function streamChat(
   }
 ): Promise<void> {
   try {
-    const stream = client.messages.stream({
-      model: req.model || DEFAULT_MODEL,
-      max_tokens: req.max_tokens || DEFAULT_MAX_TOKENS,
-      system: req.system || 'You are a helpful AI assistant in a mobile game. Keep responses concise and friendly.',
-      messages: req.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+    const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: req.model || DEFAULT_MODEL,
+        max_tokens: req.max_tokens || DEFAULT_MAX_TOKENS,
+        messages: buildMessages(req),
+        stream: true,
+      }),
     });
 
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`DeepSeek API error ${response.status}: ${errorBody}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
     let fullText = '';
 
-    stream.on('text', (text: string) => {
-      fullText += text;
-      callbacks.onChunk(text);
-    });
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    stream.on('end', () => {
-      callbacks.onDone(fullText);
-    });
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    stream.on('error', (error: Error) => {
-      callbacks.onError(error);
-    });
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+        const data = trimmed.substring(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullText += delta;
+            callbacks.onChunk(delta);
+          }
+        } catch {
+          // Skip unparseable lines
+        }
+      }
+    }
+
+    callbacks.onDone(fullText);
   } catch (error) {
     callbacks.onError(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
 /**
- * Simple non-streaming chat (for editor use).
+ * Simple non-streaming chat.
  */
 export async function chat(req: ChatRequest): Promise<string> {
-  const response = await client.messages.create({
-    model: req.model || DEFAULT_MODEL,
-    max_tokens: req.max_tokens || DEFAULT_MAX_TOKENS,
-    system: req.system,
-    messages: req.messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    })),
+  const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: req.model || DEFAULT_MODEL,
+      max_tokens: req.max_tokens || DEFAULT_MAX_TOKENS,
+      messages: buildMessages(req),
+      stream: false,
+    }),
   });
 
-  const textBlock = response.content.find((b) => b.type === 'text');
-  return textBlock?.text || '';
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`DeepSeek API error ${response.status}: ${errorBody}`);
+  }
+
+  const data = await response.json() as any;
+  return data.choices?.[0]?.message?.content || '';
 }

@@ -35,11 +35,18 @@ export function open(this: PanelThis): void {
 }
 
 /**
- * Menu message handler.
+ * Message/method handlers for IPC from menu and other extension points.
+ * Cocos Creator 3.x uses `messages` for menu items.
  */
 export const messages = {
   'toggle-panel'(): void {
-    // The menu click will open/close the panel automatically via contributions
-    console.log('[Claude Assistant] Toggle panel requested');
+    console.log('[Claude Assistant] Toggle panel requested via messages');
+    // Editor.Panel.open('claude-assistant.default');
+  },
+};
+
+export const methods = {
+  'toggle-panel'(): void {
+    console.log('[Claude Assistant] Toggle panel requested via methods');
   },
 };
