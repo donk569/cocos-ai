@@ -19,12 +19,6 @@
         }
       }
     },
-    "menu": [
-      {
-        "path": "Extensions/Claude Assistant",
-        "label": "Toggle Claude Assistant",
-        "message": "toggle-panel"
-      }
-    ]
+    "menu": []
   }
 }
