@@ -1,0 +1,30 @@
+{
+  "name": "claude-assistant",
+  "version": "1.0.0",
+  "description": "Claude AI assistant panel for Cocos Creator editor",
+  "author": "flyball-team",
+  "editor": ">=3.8.0",
+  "main": "./main.js",
+  "contributions": {
+    "panels": {
+      "default": {
+        "title": "Claude Assistant",
+        "type": "dockable",
+        "main": "./panels/default/index.js",
+        "size": {
+          "min-width": 320,
+          "min-height": 400,
+          "width": 420,
+          "height": 500
+        }
+      }
+    },
+    "menu": [
+      {
+        "path": "Extensions/Claude Assistant",
+        "label": "Toggle Claude Assistant",
+        "message": "toggle-panel"
+      }
+    ]
+  }
+}
